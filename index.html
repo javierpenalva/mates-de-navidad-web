@@ -1281,14 +1281,24 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
     if (s === 'rm' || s === 'rey' || s === 'rey de las mates' || s === 'el rey de las mates' || s === '2') return 'RM';
     return null;
   }
-  var PRIOR = [[1.6, 1.8], [2.5, 2.2], [2.5, 2.2], [2.5, 2.2]];   // se empieza más fácil: suma y resta centrada en el nivel 1-2
+  /* Un motor de dificultad por modo (mismos módulos, distinta configuración):
+   *  - CR (contrarreloj): arranque suave. 1.ª pregunta de nivel 1 (sin paréntesis), categorías que se abren poco a poco,
+   *    nivel objetivo con ≈ 69 % de acierto previsto.
+   *  - RM (el rey de las mates): exigente desde el principio. Las 4 categorías abiertas, 1.ª pregunta de nivel 4,
+   *    creencia inicial centrada en el nivel 4-5 y nivel objetivo con ≈ 60 % de acierto previsto (más difícil). */
+  var PERFILES = {
+    CR: { prior: [[1.6, 1.8], [2.5, 2.2], [2.5, 2.2], [2.5, 2.2]], primer: 1, objetivo: Bayes.OBJETIVO, todas: false },
+    RM: { prior: [[4.5, 2.0], [4.5, 2.0], [4.5, 2.0], [4.5, 2.0]], primer: 4, objetivo: 0.6, todas: true }
+  };
 
   function nuevaPartida(modo, lista) {
     J = {
       modo: modo, lista: lista, inicio: Date.now(),
-      creencia: PRIOR.map(function (x) { return Bayes.prior(x[0], x[1]); }),
+      perfil: PERFILES[modo] || PERFILES.CR,
+      creencia: (PERFILES[modo] || PERFILES.CR).prior.map(function (x) { return Bayes.prior(x[0], x[1]); }),
       n: [0, 0, 0, 0], aciertosCat: [0, 0, 0, 0], errCat: [0, 0, 0, 0], recCat: [[], [], [], []],
-      iniciada: [true, false, false, false], desbloq: [true, false, false, false],
+      iniciada: (PERFILES[modo] || PERFILES.CR).todas ? [true, true, true, true] : [true, false, false, false],
+      desbloq: (PERFILES[modo] || PERFILES.CR).todas ? [true, true, true, true] : [true, false, false, false],
       ultimoNivel: [null, null, null, null], ultimoGlobal: null, ultimaCat: -1,
       puntos: 0, aciertos: 0, errores: 0, blancos: 0, racha: 0, mejorRacha: 0, respondidas: 0,
       msRest: CFG.DURACION_CR * 1000, tJuego: 0, sumT: 0, qT: 0,
@@ -1314,12 +1324,12 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
   }
   // nivel objetivo: el que da ~68 % de probabilidad predictiva de acierto
   function limitarSalto(d) {                  // salto máximo de +-1 nivel respecto a la pregunta anterior (cualquier categoría)
-    if (J.ultimoGlobal === null) return clamp(Math.min(d, 1), 1, 10);                 // la primera pregunta siempre es de nivel 1 (sin paréntesis)
+    if (J.ultimoGlobal === null) return clamp(Math.min(d, J.perfil.primer), 1, 10);   // 1.ª pregunta: nivel 1 en Contrarreloj (sin paréntesis), nivel 4 en El rey
     return clamp(clamp(d, J.ultimoGlobal - 1, J.ultimoGlobal + 1), 1, 10);
   }
   function objetivoBase(c) {
     var best = 1, bd = 9, ds = [];
-    for (var d = 1; d <= 10; d++) { var dd = Math.abs(Bayes.predictivo(J.creencia[c], d) - Bayes.OBJETIVO); ds[d] = dd; if (dd < bd - 1e-12) { bd = dd; best = d; } }
+    for (var d = 1; d <= 10; d++) { var dd = Math.abs(Bayes.predictivo(J.creencia[c], d) - J.perfil.objetivo); ds[d] = dd; if (dd < bd - 1e-12) { bd = dd; best = d; } }
     var u = J.ultimoNivel[c];
     if (u !== null && ds[u] - bd < 0.04) best = u;       // histéresis: si el último nivel ya es casi igual de bueno, no se mueve (menos ruido)
     return limitarSalto(best);
