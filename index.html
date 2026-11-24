@@ -934,8 +934,11 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
     // división donde el dividendo es grande (dividendo = divisor x cociente)
     function genMD(d) {
       switch (d) {
-        case 1: return cadena('*', [2, 6], [2, 6], [2, 5], [2, 5], 1, 0.7, 36, true);
-        case 2: return cadena(chance(0.7) ? '*' : ':', [4, 9], [4, 9], [2, 5], [2, 5], 0.9, 0.5, 81, false);
+        case 1: {                                       // nivel de arranque: sin paréntesis (−3·6, −12:4)
+          var fa = ri(2, 4), fb = ri(2, 4);
+          return { p: chance(0.7) ? M + fa + '·' + fb : M + (fa * fb) + ':' + fb };
+        }
+        case 2: return cadena(chance(0.85) ? '*' : ':', [4, 9], [4, 9], [2, 5], [2, 5], 0.9, 0.5, 81, false);
         case 3: return cadena('?', [2, 9], [2, 9], [2, 9], [2, 9], 0.7, 0.4, 81, false);
         case 4: return cadena('?', [2, 12], [2, 12], [2, 12], [2, 12], 0.7, 0.4, 144, false);
         case 5: return RNG.chance(0.5) ? cadena('*', [13, 25], [2, 9], [2, 5], [2, 5], 0.5, 0.3, 250, false) : cadena(':', [2, 5], [2, 5], [2, 12], [11, 20], 0.5, 0.3, 240, false);
@@ -960,7 +963,9 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
     function genPot(d) {
       var b, e, o, k, c, txt;
       switch (d) {
-        case 1: return { p: termino3(ri(2, 5), 2, 15, chance(0.4)) };
+        case 1: { var t1 = termino3(ri(2, 5), 2, 15, chance(0.4));      // nivel de arranque: sin (+n)
+          if (t1.indexOf('(+') >= 0 && /−\(\+/.test(t1)) return null;
+          return { p: t1.replace(/\(\+(\d+)\)/g, '$1') }; }
         case 2: o = RNG.next();                                       // exponentes 0 y 1 y potencias de 10
           if (o < 0.35) return { p: termino3(ri(2, 5), ri(0, 1), 15, chance(0.1)) };
           if (o < 0.55) return { p: termino3(-ri(2, 5), ri(0, 1), 15, chance(0.1)) };
@@ -1276,7 +1281,7 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
     if (s === 'rm' || s === 'rey' || s === 'rey de las mates' || s === 'el rey de las mates' || s === '2') return 'RM';
     return null;
   }
-  var PRIOR = [[3.0, 2.5], [2.5, 2.2], [2.5, 2.2], [2.5, 2.2]];
+  var PRIOR = [[1.6, 1.8], [2.5, 2.2], [2.5, 2.2], [2.5, 2.2]];   // se empieza más fácil: suma y resta centrada en el nivel 1-2
 
   function nuevaPartida(modo, lista) {
     J = {
@@ -1309,7 +1314,7 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
   }
   // nivel objetivo: el que da ~68 % de probabilidad predictiva de acierto
   function limitarSalto(d) {                  // salto máximo de +-1 nivel respecto a la pregunta anterior (cualquier categoría)
-    if (J.ultimoGlobal === null) return clamp(Math.min(d, 3), 1, 10);
+    if (J.ultimoGlobal === null) return clamp(Math.min(d, 1), 1, 10);                 // la primera pregunta siempre es de nivel 1 (sin paréntesis)
     return clamp(clamp(d, J.ultimoGlobal - 1, J.ultimoGlobal + 1), 1, 10);
   }
   function objetivoBase(c) {
